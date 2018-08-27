@@ -18,6 +18,12 @@
         android:id="@+id/btn_takephoto"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="拍照" />
+        android:text="拍照并裁剪" />
+
+    <Button
+        android:id="@+id/btn_open_photo_album"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="打开相册并裁剪" />
 
 </LinearLayout>
