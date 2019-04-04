@@ -19,9 +19,9 @@ import android.widget.ImageView;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.Locale;
 
 /**
@@ -38,6 +38,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private Uri imgUri; // 拍照时返回的uri
     private Uri mCutUri;// 图片裁剪时返回的uri
     private boolean hasPermission = false;
+    private File imgFile;// 拍照保存的图片文件
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,17 +56,24 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.btn_takephoto:
+                checkPermissions();
                 if (hasPermission) {
-                    takePhone();
+                    takePhoto();
                 }
                 break;
 
             case R.id.btn_open_photo_album:
+                checkPermissions();
                 if (hasPermission) {
                     openGallery();
                 }
 
                 break;
+
+            default:
+                break;
+
+
         }
     }
 
@@ -81,9 +89,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             // 检查是否有存储和拍照权限
             if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
                     && checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-                    ) {
+            ) {
                 hasPermission = true;
-//                takePhone();
             } else {
                 requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.CAMERA}, REQUEST_PERMISSION);
             }
@@ -95,7 +102,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_PERMISSION) {
             if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-//                takePhone();
                 hasPermission = true;
             } else {
                 Toast.makeText(this, "权限授予失败！", Toast.LENGTH_SHORT).show();
@@ -105,7 +111,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     // 拍照
-    private void takePhone() {
+    private void takePhoto() {
         // 要保存的文件名
         String time = new SimpleDateFormat("yyyyMMddHHmmss", Locale.CHINA).format(new Date());
         String fileName = "photo_" + time;
@@ -116,15 +122,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             file.mkdirs();
         }
         // 要保存的图片文件
-        File imgFile = new File(file, fileName + ".jpeg");
+        imgFile = new File(file, fileName + ".jpeg");
         // 将file转换成uri
         // 注意7.0及以上与之前获取的uri不一样了，返回的是provider路径
         imgUri = getUriForFile(this, imgFile);
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         // 添加Uri读取权限
         intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        // 或者
+//        grantUriPermission("com.rain.takephotodemo", imgUri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
         // 添加图片保存位置
         intent.putExtra(MediaStore.EXTRA_OUTPUT, imgUri);
+        intent.putExtra("return-data", false);
         startActivityForResult(intent, REQUEST_TAKE_PHOTO);
     }
 
@@ -132,6 +141,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void cropPhoto(Uri uri, boolean fromCapture) {
         Intent intent = new Intent("com.android.camera.action.CROP"); //打开系统自带的裁剪图片的intent
         intent.setDataAndType(uri, "image/*");
+        intent.putExtra("crop", "true");
+
+        // 注意一定要添加该项权限，否则会提示无法裁剪
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+
         intent.putExtra("scale", true);
 
         // 设置裁剪区域的宽高比例
@@ -150,19 +165,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         // 若为false则表示不返回数据
         intent.putExtra("return-data", false);
 
-
         // 指定裁剪完成以后的图片所保存的位置,pic info显示有延时
         if (fromCapture) {
-            // 如果是使用拍照，那么原先的uri和最终目标的uri一致
-            mCutUri = uri;
+            // 如果是使用拍照，那么原先的uri和最终目标的uri一致,注意这里的uri必须是Uri.fromFile生成的
+            mCutUri = Uri.fromFile(imgFile);
         } else { // 从相册中选择，那么裁剪的图片保存在take_photo中
             String time = new SimpleDateFormat("yyyyMMddHHmmss", Locale.CHINA).format(new Date());
             String fileName = "photo_" + time;
-            File mCutFile = new File(Environment.getExternalStorageDirectory() + "/take_photo", fileName + ".jpeg");
+            File mCutFile = new File(Environment.getExternalStorageDirectory() + "/take_photo/", fileName + ".jpeg");
             if (!mCutFile.getParentFile().exists()) {
                 mCutFile.getParentFile().mkdirs();
             }
-            mCutUri = getUriForFile(this, mCutFile);
+            mCutUri = Uri.fromFile(mCutFile);
         }
         intent.putExtra(MediaStore.EXTRA_OUTPUT, mCutUri);
         Toast.makeText(this, "剪裁图片", Toast.LENGTH_SHORT).show();
@@ -194,6 +208,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 case SCAN_OPEN_PHONE:
                     Log.e(TAG, "onActivityResult: SCAN_OPEN_PHONE:" + data.getData().toString());
                     cropPhoto(data.getData(), false);
+                    break;
+
+                default:
                     break;
             }
         }

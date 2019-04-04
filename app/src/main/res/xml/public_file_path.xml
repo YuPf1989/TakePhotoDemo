@@ -2,5 +2,5 @@
 <resources>
     <external-path
         name="images"
-        path="take_photo/"/>
+        path="."/>
 </resources>

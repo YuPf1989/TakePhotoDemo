@@ -21,7 +21,6 @@
             </intent-filter>
         </activity>
 
-        <!--待修改-->
         <provider
             android:name="android.support.v4.content.FileProvider"
             android:authorities="com.rain.takephotodemo.FileProvider"
